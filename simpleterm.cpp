@@ -30,7 +30,7 @@ void serial_init(int fd)
 {
   struct termios tio;
   memset(&tio,0,sizeof(tio));
-  tio.c_cflag = CS8 | CLOCAL | CREAD;
+  tio.c_cflag = CS8 | CREAD | CRTSCTS | PARODD;
   tio.c_cc[VTIME] = 100;
   // ボーレートの設定
   cfsetispeed(&tio,BAUD_RATE);
@@ -66,7 +66,7 @@ unsigned char getdata(int fd, unsigned char *buf){
       cnt++;
     }
     else {
-      printf(" END\n");
+      //printf(" END\n");
       while((len=read(fd,buf,BUFF_SIZE))==0);
       cnt=0;
       if(len<0){
@@ -110,15 +110,50 @@ int main(int argc,char *argv[]){
   serial_init(fd);
 
   // メインの無限ループ
+  for(;;){
+
+    for(int i=0; i<25;i++){
+        data = getdata(fd, buffer);
+        printf("%02X ",data);
+    }
+    printf("\n");
+    continue;
+
+
+
+    if (data!=0x41)continue;
+    data = getdata(fd, buffer);
+    if (data!=0x53)continue;
+    data = getdata(fd, buffer);
+    data = getdata(fd, buffer);
+    data = getdata(fd, buffer);
+    if (data!=0x47)continue;
+    data = getdata(fd, buffer);
+    if (data==0x4E)break;
+  }
+  for(int i=0;i<12;i++)
+      data=getdata(fd, buffer);
+  unsigned char lower = getdata(fd, buffer);
+  unsigned char upper = getdata(fd, buffer);
+  unsigned int num=(unsigned int)upper*0xff+lower;
+  for(int i=0; i<num; i++)
+      data=getdata(fd, buffer);
+  for(i=0;i<4;i++)
+      data=getdata(fd, buffer);
+
+
+
+
+
   while(1){
 
     for(;;){
       data=getdata(fd, buffer);
       // 受信したデータを 16進数形式で表示    
-      printf("%02X ", data);      
+      //printf("%02X ", data);      
       //受信データは意味の塊ごとに先頭に16進数で16 16 06 02ちと言うデータがつくことになっているので
       //以下でそのデータを受信するごとに改行して表示するようになっている．
-      switch(0/*rcounter*/){
+      switch(rcounter){
         case 1:
           if (data==0x47){
             rcounter++;
@@ -175,7 +210,7 @@ int main(int argc,char *argv[]){
           data2=data;
           data=getdata(fd, buffer);
           printf("%02X\nDATA ", data);
-          datasize=data2*0xff + data;
+          datasize=data*0xff + data2;
           break;
         case 8:
           printf("%02X ",data);
